@@ -1,11 +1,28 @@
 # First file
-makeMatrix <- function(classNo = 2)
+makeMatrix <- function(classNo = 3, naive = FALSE)
 {
   if(classNo < 3)
   {
     return()
   }
   
+  if(naive == TRUE)
+  {
+    
+  }
+  else
+  {
+    if(classNo >= 3 && classNo <= 7)
+    {
+      retMatrix <- exhaustiveCodes(classNo)
+    }
+  }
+  
+  retMatrix
+}
+
+exhaustiveCodes <- function(classNo)
+{
   #specify rows length
   rowLength <- 2^(classNo-1) - 1
   
