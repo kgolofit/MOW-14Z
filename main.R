@@ -51,7 +51,7 @@ makeMatrix <- function(classNo = 3, naive = FALSE)
   
   if(naive == TRUE)
   {
-    
+    retMatrix <- naiveCodes(classNo)
   }
   else
   {
@@ -61,6 +61,18 @@ makeMatrix <- function(classNo = 3, naive = FALSE)
     }
   }
   
+  retMatrix
+}
+
+naiveCodes <- function(classNo)
+{
+  #create 0-filled matrix
+  retMatrix <- matrix(0, classNo, classNo)
+  
+  #add 1 to diagonal
+  diag(retMatrix) <- diag(retMatrix) + 1
+  
+  #return matrix
   retMatrix
 }
 
@@ -117,4 +129,65 @@ prepareRow <- function(rowLength, seqLength)
   }
   
   row
+}
+
+#function counts Hamming distance beetwen two words (we expect words to have equal length)
+countHamming <- function(wordA, wordB)
+{
+  #perform a xor on two words
+  xorWord <- abs(wordA - wordB)
+  
+  #sum elements (different positions)
+  distance <- sum(xorWord)
+  
+  #return the distance
+  distance
+}
+
+#return index of class represented by codeword
+decodeClass <- function(ecocMatrix, classWord)
+{
+  #initialize variables
+  minDistance <- length(classWord)
+  retClass <- NA
+  
+  #find closest one in a loop
+  for(i in 1:length(ecocMatrix[ ,1]))
+  {
+    distance <- countHamming(ecocMatrix[i, ], classWord)
+    #if we've found closer match - save it
+    if(distance < minDistance)
+    {
+      minDistance <- distance
+      retClass <- i
+    }
+  }
+  
+  #return class
+  retClass
+}
+
+#function returns minimum Hamming distance between any two words in a given matrix
+minimalHamming <- function(ecocMatrix)
+{
+  classNo <- length(ecocMatrix[, 1])
+  
+  #there will be no greater distance than length of the word
+  minDistance <- length(ecocMatrix[1, ])
+  
+  for(i in 1:(classNo - 1))
+  {
+    for(j in (i+1):classNo)
+    {
+      print(j)
+      distance <- countHamming(ecocMatrix[i, ], ecocMatrix[j, ])
+      if(distance < minDistance)
+      {
+        minDistance <- distance
+      }
+    }
+  }
+  
+  #return minDistance
+  minDistance
 }
