@@ -42,7 +42,7 @@ classify <- function(dat)
 
 ####################################################################
 
-makeMatrix <- function(classNo = 3, naive = FALSE)
+makeMatrix <- function(classNo = 3, naive = FALSE, removeColumns = FALSE)
 {
   if(classNo < 3)
   {
@@ -55,10 +55,22 @@ makeMatrix <- function(classNo = 3, naive = FALSE)
   }
   else
   {
-    if(classNo >= 3 && classNo <= 7)
+    #create ecoc matrix
+    if(classNo >= 3 && classNo <= 11)
     {
       retMatrix <- exhaustiveCodes(classNo)
     }
+    #else TODO - random walk
+    #{
+    #  
+    #}
+    
+    #remove columns if it's nessecary
+    if(removeColumns == TRUE)
+    {
+      retMatrix <- removeColumns(retMatrix)
+    }
+    
   }
   
   retMatrix
@@ -131,6 +143,32 @@ prepareRow <- function(rowLength, seqLength)
   row
 }
 
+#function removes colums from ECOC matrix until Hamming Distance is 3 (minimum for ECOC codes)
+removeColumns <- function(ecocMatrix)
+{
+  #iteration variable
+  i <- 1
+  
+  #iterate while index is in bounds
+  while(i <= length(ecocMatrix[1,]))
+  {
+    tmpMatrix <- ecocMatrix[,-i]
+    
+    #if ecoc Matrix is still ok remove column
+    if(minimalHamming(tmpMatrix) >= 3)
+    {
+      ecocMatrix <- tmpMatrix
+    }
+    else #check next column
+    {
+      i <- i + 1
+    }
+  }
+  
+  #return column with some columns removed
+  ecocMatrix  
+}
+
 #function counts Hamming distance beetwen two words (we expect words to have equal length)
 countHamming <- function(wordA, wordB)
 {
@@ -179,7 +217,6 @@ minimalHamming <- function(ecocMatrix)
   {
     for(j in (i+1):classNo)
     {
-      print(j)
       distance <- countHamming(ecocMatrix[i, ], ecocMatrix[j, ])
       if(distance < minDistance)
       {
