@@ -233,8 +233,13 @@ removeColumns <- function(ecocMatrix, columnNo)
 }
 
 #function generates ecoc matrix using random walk algorithm
-randomWalk <- function(classNo, columnNo)
+randomWalk <- function(classNo, columnNo = 0)
 {
+  #column number is optional in makeMatrix function so default value is a class number
+  if(columnNo == 0)
+  {
+    columnNo <- classNo
+  }
   #generate vector to initialize a matrix
   iniVector <- sample(c(0, 1), classNo * columnNo, replace = TRUE)
   
@@ -253,7 +258,6 @@ randomWalk <- function(classNo, columnNo)
     retMatrix[minimalHD[1], columns[1]] <- abs(retMatrix[minimalHD[1], columns[1]] - 1)
     retMatrix[minimalHD[2], columns[2]] <- abs(retMatrix[minimalHD[2], columns[2]] - 1)
 
-    print(retMatrix)
     minimalHD <- minimalHammingDetails(retMatrix)
   }
   
@@ -279,8 +283,8 @@ findColumns <- function(wordA, wordB)
       {
         column2 <- i
       }
-      i <- i + 1
     }
+    i <- i + 1
   }
   
   #return the columns
