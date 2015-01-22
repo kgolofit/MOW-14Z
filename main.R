@@ -7,10 +7,11 @@
 ##
 
 ## przykladowe wywolanie (dla Iris)
-example <- function()
+exampleIris <- function()
 {
   library(ada)
   library(caret)
+  library(party)
   
   print("========================================")
   print("Test w oparciu o standardowy zbior IRIS:")
@@ -20,22 +21,69 @@ example <- function()
   
   X <- iris[,-5]
   Y <- iris[,5]
-  myModels <- oneVsAll(X, Y, ada)
-  preds <- predict(myModels, X, type='probs')
+  myModels <- oneVsAll(X, Y, ctree)
+  preds <- predict(myModels, X, type='prob')
   
   print("Ogólna jakość predykcji wyniosła:")
   
   countQuality(preds, Y)
 }
 
+examplePenDigs <- function(trainPart=0.8)
+{
+  library(ada)
+  library(caret)
+  
+  pendigitTra <- read.csv("pendigits.tra")
+  pendigitTes <- read.csv("pendigits.tes")
+  
+  print("========================================")
+  print("Test w oparciu o standardowy zbior IRIS:")
+  print("========================================")
+  print(pendigitTra[1:5,])
+  print("========================================")
+  print("Czas rozpoczecia: ")
+  print(Sys.time())
+  print("========================================")
+  
+  X <- pendigitTra[,-dim(pendigitTra)[2]]
+  Y <- pendigitTra[,dim(pendigitTra)[2]]
+  
+  Xtrain <- X[1:(trainPart * dim(X)[1]),]
+  Ytrain <- Y[1:(trainPart * length(Y))]
+  
+  Xtest <- X[(trainPart * dim(X)[1]):dim(X)[1],]
+  Ytest <- Y[(trainPart * length(Y)):length(Y)]
+  
+  myModels <- oneVsAll(X, Y, ada)
+  
+  print("========================================")
+  print("Zakonczone generowanie modeli. Czas: ")
+  print(Sys.time())
+  print("========================================")
+  
+  preds <- predict(myModels, Xtest, type='probs')
+  
+  print("Ogolna jakosc klasyfikacji wyniosla:")
+  
+  q <- countQuality(preds, Ytest)
+  print(q)
+  
+  print("========================================")
+  print("Czas zakończenia: ")
+  print(Sys.time())
+  print("========================================")
+}
+
 ## ######################################################################################## ##
 ## nasza klasa modelu predykcji opartego na klasyfikatorach binarnych i kodach korekcyjnych ##
 ## ######################################################################################## ##
 
-oneVsAll <- function(X,Y,FUN,n=FALSE,...)
+oneVsAll <- function(X,Y,FUN,n=FALSE,cutCols=TRUE, ...)
 {
   #Macierz ECOC dla zadanego zbioru testowego
-  ecocMatrix <- makeMatrix(length(unique(Y)), n)
+  ecocMatrix <- makeMatrix(length(unique(Y)), n, FALSE, cutCols)
+  cat("Macierz ECOC ma wymiary", dim(ecocMatrix))
   classes <- unique(Y)
   
   models <- apply(ecocMatrix, 2, function(x)
@@ -98,7 +146,8 @@ countQuality <- function(predicted, original)
   booleans <- predicted == original
   tab <- table(booleans)
   
-  tab / length(booleans)
+  quality <- tab / length(booleans)
+  return(quality)
 }
 
 ####################################################################
