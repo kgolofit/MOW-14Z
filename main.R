@@ -28,6 +28,9 @@ example <- function()
   countQuality(preds, Y)
 }
 
+## ######################################################################################## ##
+## nasza klasa modelu predykcji opartego na klasyfikatorach binarnych i kodach korekcyjnych ##
+## ######################################################################################## ##
 
 oneVsAll <- function(X,Y,FUN,n=FALSE,...)
 {
@@ -97,15 +100,6 @@ countQuality <- function(predicted, original)
   
   tab / length(booleans)
 }
-
-# classify <- function(dat) 
-# {
-# # To chyba u nas niepotrzebne (?) 
-#   
-#     out <- dat/rowSums(dat)
-#     out$Class <- apply(dat, 1, function(x) names(dat)[which.max(x)])
-#     out
-# }
 
 ####################################################################
 
