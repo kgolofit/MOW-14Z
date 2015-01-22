@@ -1,44 +1,111 @@
-# First file
-oneVsAll <- function(X,Y,FUN,...)
+################################################################################
+## Projekt MOW 14Z
+##
+## Marcin Janicki
+## Kamil Gołofit
+## 
+##
+
+## przykladowe wywolanie (dla Iris)
+example <- function()
 {
-# Tu bedziemy tworzyc modele - tu stworzy sie macierz i klasyfikatory binarne.
-# Tu tez chyba bedzie ich trenowanie
+  library(ada)
+  library(caret)
   
+  print("========================================")
+  print("Test w oparciu o standardowy zbior IRIS:")
+  print("========================================")
+  print(iris)
+  print("========================================")
   
-#   models <- lapply(unique(Y), function(x)
-#   {
-#     name <- as.character(x)
-#     .Target <- factor(ifelse(Y==name,name,'other'), levels=c(name, 'other'))
-#     dat <- data.frame(.Target, X)
-#     model <- FUN(.Target~., data=dat, ...)
-#     return(model)
-#   })
-#   names(models) <- unique(Y)
-#   info <- list(X=X, Y=Y, classes=unique(Y))
-#   out <- list(models=models, info=info)
-#   class(out) <- 'oneVsAll'
-#   return(out)
+  X <- iris[,-5]
+  Y <- iris[,5]
+  myModels <- oneVsAll(X, Y, ada)
+  preds <- predict(myModels, X, type='probs')
+  
+  print("Ogólna jakość predykcji wyniosła:")
+  
+  countQuality(preds, Y)
+}
+
+
+oneVsAll <- function(X,Y,FUN,n=FALSE,...)
+{
+  #Macierz ECOC dla zadanego zbioru testowego
+  ecocMatrix <- makeMatrix(length(unique(Y)), n)
+  classes <- unique(Y)
+  
+  models <- apply(ecocMatrix, 2, function(x)
+  {
+    # klasy dla ktorych mamy '1' w kolumnie. x - aktualna kolumna
+    goodClasses <- classes[x == 1]
+    
+    # mapa 1 i 0 dla przykladow. 1 dla 'dobrych' dla kolumny klas, 0 w p.p.
+    .Target <- factor(ifelse(Y %in% goodClasses,1,0), levels=c(1,0))
+    
+    # dodanie do mapy wartosci atrybutow
+    dat <- data.frame(.Target, X)
+    
+    # tworzenie modelu (klasyfikatora binarnego dla zadanej kolumny x)
+    model <- FUN(.Target~., data=dat, ...)
+    return(model)
+  })
+  
+  # nadanie nazw klasyfikatorom kolejnych kolumn
+    names(models) <- 1:sqrt(length(ecocMatrix))
+    info <- list(X=X, Y=Y, classes=unique(Y))
+    out <- list(models=models, info=info, ecoc=ecocMatrix)
+    class(out) <- 'oneVsAll'
+    return(out)
 }
 
 predict.oneVsAll <- function(object, newX=object$info$X, ...) 
 {
-# Tutaj podobnie - predict dla kazdego z binarnych klasyfikatorow i dla wyjscia odkodowac decyzje. 
+    stopifnot(class(object)=='oneVsAll')
   
-#   stopifnot(class(object)=='oneVsAll')
-#   lapply(object$models, function(x)
-#   {
-#     predict(x, newX, ...)
-#   })
+    # mozliwe do przewidzenia klasy
+    classes <- object$info$classes
+    ecocMatrix <- object$ecoc
+  
+    # zebranie predictions dla kazdego z modeli (dla kazdej kolumny macierzy ECOC)
+    predictions <- lapply(object$models, function(x)
+    {
+      predict(x, newX, ...)
+    })
+    
+    # stworzenie macierzy ciagu bitow (kodow korekcyjnych) dla kazdego z wierszy (przykladu)
+    ecocPreds <- round(do.call(cbind, predictions))
+    ecocPreds <- ecocPreds[,seq(2,dim(ecocPreds)[2],2)]
+    
+    # dekodowanie slow kodowych powstalych z predykcji przykladow przez modele
+    decoded <- apply(ecocPreds, 1, function(x)
+    {
+      decodeClass(ecocMatrix, x)
+    })
+    
+    # zmapowanie numerow klas na nazwy uzyte w datasecie
+    decisions <- classes[decoded]
+    
+    return(decisions)
 }
 
-classify <- function(dat) 
+# podaje w % ile przykladow jest poprawnie sklasyfikowanych
+countQuality <- function(predicted, original)
 {
-# To chyba u nas niepotrzebne (?) 
+  booleans <- predicted == original
+  tab <- table(booleans)
   
-#   out <- dat/rowSums(dat)
-#   out$Class <- apply(dat, 1, function(x) names(dat)[which.max(x)])
-#   out
+  tab / length(booleans)
 }
+
+# classify <- function(dat) 
+# {
+# # To chyba u nas niepotrzebne (?) 
+#   
+#     out <- dat/rowSums(dat)
+#     out$Class <- apply(dat, 1, function(x) names(dat)[which.max(x)])
+#     out
+# }
 
 ####################################################################
 
