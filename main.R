@@ -7,7 +7,7 @@
 ##
 
 ## przykladowe wywolanie (dla Iris)
-exampleIris <- function()
+example <- function()
 {
   library(ada)
   library(caret)
@@ -16,15 +16,15 @@ exampleIris <- function()
   print("========================================")
   print("Test w oparciu o standardowy zbior IRIS:")
   print("========================================")
-  print(iris)
+  print(iris[1:5,])
   print("========================================")
   
   X <- iris[,-5]
   Y <- iris[,5]
-  myModels <- oneVsAll(X, Y, ctree)
-  preds <- predict(myModels, X, type='prob')
+  myModels <- oneVsAll(X, Y, rpart)                 #rpart  #ada  #tree
+  preds <- predict(myModels, X, type='prob')#type = #prob   #prob #[none]
   
-  print("Ogólna jakość predykcji wyniosła:")
+  print("Ogolna jakosc predykcji wyniosla:")
   
   countQuality(preds, Y)
 }
@@ -79,11 +79,10 @@ examplePenDigs <- function(trainPart=0.8)
 ## nasza klasa modelu predykcji opartego na klasyfikatorach binarnych i kodach korekcyjnych ##
 ## ######################################################################################## ##
 
-oneVsAll <- function(X,Y,FUN,n=FALSE,cutCols=TRUE, ...)
+oneVsAll <- function(X,Y,FUN,n=FALSE,...)
 {
   #Macierz ECOC dla zadanego zbioru testowego
-  ecocMatrix <- makeMatrix(length(unique(Y)), n, FALSE, cutCols)
-  cat("Macierz ECOC ma wymiary", dim(ecocMatrix))
+  ecocMatrix <- makeMatrix(length(unique(Y)), n)
   classes <- unique(Y)
   
   models <- apply(ecocMatrix, 2, function(x)
@@ -103,41 +102,65 @@ oneVsAll <- function(X,Y,FUN,n=FALSE,cutCols=TRUE, ...)
   })
   
   # nadanie nazw klasyfikatorom kolejnych kolumn
-    names(models) <- 1:sqrt(length(ecocMatrix))
-    info <- list(X=X, Y=Y, classes=unique(Y))
-    out <- list(models=models, info=info, ecoc=ecocMatrix)
-    class(out) <- 'oneVsAll'
-    return(out)
+  names(models) <- 1:sqrt(length(ecocMatrix))
+  info <- list(X=X, Y=Y, classes=unique(Y))
+  out <- list(models=models, info=info, ecoc=ecocMatrix)
+  class(out) <- 'oneVsAll'
+  return(out)
 }
 
 predict.oneVsAll <- function(object, newX=object$info$X, ...) 
 {
-    stopifnot(class(object)=='oneVsAll')
+  stopifnot(class(object)=='oneVsAll')
   
-    # mozliwe do przewidzenia klasy
-    classes <- object$info$classes
-    ecocMatrix <- object$ecoc
+  # mozliwe do przewidzenia klasy
+  classes <- object$info$classes
+  ecocMatrix <- object$ecoc
   
-    # zebranie predictions dla kazdego z modeli (dla kazdej kolumny macierzy ECOC)
-    predictions <- lapply(object$models, function(x)
-    {
-      predict(x, newX, ...)
-    })
+  # zebranie predictions dla kazdego z modeli (dla kazdej kolumny macierzy ECOC)
+  predictions <- lapply(object$models, function(x)
+  {
+    predict(x, newX, ...)
+  })
+  
+  #return(predictions) #TODO remove when not need
+  
+  if(class(object$models$'1') == "BinaryTree") #ctree
+  {
+    # TODO (?) ctree
+    # stworzenie macierzy ciagu bitow (kodow korekcyjnych) dla kazdego z wierszy (przykladu)
+    ecocPreds <- round(do.call(cbind, predictions))
+  }
+  else if(class(object$models$'1') == "rpart") #rpart
+  {
+    # dla rpart mamy inaczej zwracane pnstwo (odwrotnie dla 0 i 1)
     
+    ecocPreds <- round(do.call(cbind, predictions))
+    ecocPreds <- ecocPreds[,seq(1,dim(ecocPreds)[2],2)]
+  }
+  else if(class(object$models$'1') == "tree") #tree
+  {
+    # dla rpart mamy inaczej zwracane pnstwo (odwrotnie dla 0 i 1)
+    ecocPreds <- round(do.call(cbind, predictions))
+    ecocPreds <- ecocPreds[,seq(1,dim(ecocPreds)[2],2)]
+  }
+  else #ada
+  {
     # stworzenie macierzy ciagu bitow (kodow korekcyjnych) dla kazdego z wierszy (przykladu)
     ecocPreds <- round(do.call(cbind, predictions))
     ecocPreds <- ecocPreds[,seq(2,dim(ecocPreds)[2],2)]
-    
-    # dekodowanie slow kodowych powstalych z predykcji przykladow przez modele
-    decoded <- apply(ecocPreds, 1, function(x)
-    {
-      decodeClass(ecocMatrix, x)
-    })
-    
-    # zmapowanie numerow klas na nazwy uzyte w datasecie
-    decisions <- classes[decoded]
-    
-    return(decisions)
+  }
+  
+  # dekodowanie slow kodowych powstalych z predykcji przykladow przez modele
+  decoded <- apply(ecocPreds, 1, function(x)
+  {
+    decodeClass(ecocMatrix, x)
+  })
+  
+  # zmapowanie numerow klas na nazwy uzyte w datasecie
+  decisions <- classes[decoded]
+  
+  return(decisions)
 }
 
 # podaje w % ile przykladow jest poprawnie sklasyfikowanych
@@ -146,8 +169,7 @@ countQuality <- function(predicted, original)
   booleans <- predicted == original
   tab <- table(booleans)
   
-  quality <- tab / length(booleans)
-  return(quality)
+  tab / length(booleans)
 }
 
 ####################################################################
@@ -282,13 +304,8 @@ removeColumns <- function(ecocMatrix, columnNo)
 }
 
 #function generates ecoc matrix using random walk algorithm
-randomWalk <- function(classNo, columnNo = 0)
+randomWalk <- function(classNo, columnNo)
 {
-  #column number is optional in makeMatrix function so default value is a class number
-  if(columnNo == 0)
-  {
-    columnNo <- classNo
-  }
   #generate vector to initialize a matrix
   iniVector <- sample(c(0, 1), classNo * columnNo, replace = TRUE)
   
@@ -306,7 +323,8 @@ randomWalk <- function(classNo, columnNo = 0)
     #negate bits to enlarge the Hamming distance
     retMatrix[minimalHD[1], columns[1]] <- abs(retMatrix[minimalHD[1], columns[1]] - 1)
     retMatrix[minimalHD[2], columns[2]] <- abs(retMatrix[minimalHD[2], columns[2]] - 1)
-
+    
+    print(retMatrix)
     minimalHD <- minimalHammingDetails(retMatrix)
   }
   
@@ -332,8 +350,8 @@ findColumns <- function(wordA, wordB)
       {
         column2 <- i
       }
+      i <- i + 1
     }
-    i <- i + 1
   }
   
   #return the columns
