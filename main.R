@@ -6,6 +6,56 @@
 ## 
 ##
 
+## wczytywanie pliku poprzez read.csv("nazwa_pliku")
+
+doSetOfTests <- function(train, test, FUN, type='prob')
+{
+  print("Czas rozpoczecia: ")
+  print(Sys.time())
+  print("============================================")
+  print("Test w oparciu o zbior (3 pierwsze wiersze):")
+  print(train[1:3,])
+  print("============================================")
+  
+  XTrain <- train[,-dim(train)[2]]
+  YTrain <- train[,dim(train)[2]]
+  
+  XTest <- test[,-dim(train)[2]]
+  YTest <- test[,dim(train)[2]]
+  
+  print("Dane przygotowane. Czas:")
+  print(Sys.time())
+  print("============================================")
+  # liczenie dla modelu ADA
+  
+  adaModels <- oneVsAll(XTrain, YTrain, ada)
+  adaPreds <- predict(adaModels, XTest, type='prob')
+  
+  print("Predykcja dla modelu ADA zakonczona. Czas:")
+  print(Sys.time())
+  print("============================================")
+  print("Jakosc predykcji z wykorzystaniem kodow korekcyjnych i modelu ADA:")
+  countQuality(preds, Y)
+  
+  # liczenie dla zadanego modelu z wykorzystaniem kodow korekcyjnych
+  
+  myModels <- oneVsAll(XTrain, YTrain, FUN)
+  myPreds <- predict(myModels, XTest, type)
+  
+  print("Predykcja dla zadanego modelu z kodami korekcyjnymi zakonczona. Czas:")
+  print(Sys.time())
+  print("============================================")
+  print("Jakosc predykcji dla zadanej funkcji z wykorzystaniem kodów korekcyjnych:")
+  countQuality(myPreds, YTest)
+  
+  # liczenie dla zadanego modelu (multiclass)
+  
+  multiModel <- FUN(class~., data=train)
+  multiPredict <- predict(multiModel, XTest)
+  
+  # TODO policzyc jakosc dla normalnej predykcji
+}
+
 ## przykladowe wywolanie (dla Iris)
 example <- function()
 {
