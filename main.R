@@ -4,10 +4,11 @@
 ## Marcin Janicki
 ## Kamil Gołofit
 ## 
-##
 
 ## wczytywanie pliku poprzez read.csv("nazwa_pliku")
+## zapis do pliku poprzez write.csv(obiekt, "nazwa_pliku")
 
+## Opakowanie do przeprowadzenia testów
 doAllTests <- function(fac=0.8)
 {
   library(ada)
@@ -84,7 +85,8 @@ doAllTests <- function(fac=0.8)
   doSetOfTests(letTr, letTe, tree, 'vector')
 }
 
-doSetOfTests <- function(train, test, FUN, type='prob')
+## wykonanie zbioru testów
+doSetOfTests <- function(train, test, FUN, type='prob', naive=FALSE)
 {
   print("Czas rozpoczecia: ")
   print(Sys.time())
@@ -102,9 +104,10 @@ doSetOfTests <- function(train, test, FUN, type='prob')
   print("Dane przygotowane. Czas:")
   print(Sys.time())
   print("============================================")
+  
   # liczenie dla modelu ADA
   
-  adaModels <- oneVsAll(XTrain, YTrain, ada)
+  adaModels <- mccubc(XTrain, YTrain, ada, naive)
   adaPreds <- predict(adaModels, XTest, type='prob')
   
   print("Predykcja dla modelu ADA zakonczona. Czas:")
@@ -115,7 +118,7 @@ doSetOfTests <- function(train, test, FUN, type='prob')
   
   # liczenie dla zadanego modelu z wykorzystaniem kodow korekcyjnych
   
-  myModels <- oneVsAll(XTrain, YTrain, FUN)
+  myModels <- mccubc(XTrain, YTrain, FUN, naive)
   myPreds <- predict(myModels, XTest, type)
   
   print("Predykcja dla zadanego modelu z kodami korekcyjnymi zakonczona. Czas:")
@@ -143,12 +146,14 @@ doSetOfTests <- function(train, test, FUN, type='prob')
 ## ######################################################################################## ##
 ## nasza klasa modelu predykcji opartego na klasyfikatorach binarnych i kodach korekcyjnych ##
 ## ######################################################################################## ##
+##              Multi class classification using binary classificators - MCCUBC             ##
+## ######################################################################################## ##
 
-oneVsAll <- function(X,Y,FUN,n=TRUE,...)
+mccubc <- function(X,Y,FUN,naive,...)
 {
   #Macierz ECOC dla zadanego zbioru testowego
   classes <- unique(Y)
-  ecocMatrix <- makeMatrix(length(classes), length(classes), removeColumns=TRUE)
+  ecocMatrix <- makeMatrix(length(classes), length(classes), naive, removeColumns=TRUE)
   cat("Wymiary macierzy ECOC: ", dim(ecocMatrix), "\n")
   
   models <- apply(ecocMatrix, 2, function(x)
@@ -171,13 +176,14 @@ oneVsAll <- function(X,Y,FUN,n=TRUE,...)
   names(models) <- 1:sqrt(length(ecocMatrix))
   info <- list(X=X, Y=Y, classes=unique(Y))
   out <- list(models=models, info=info, ecoc=ecocMatrix)
-  class(out) <- 'oneVsAll'
+  class(out) <- 'mccubc'
   return(out)
 }
 
-predict.oneVsAll <- function(object, newX=object$info$X, ...) 
+## metoda predict dla naszego modelu mccubc
+predict.mccubc <- function(object, newX=object$info$X, ...) 
 {
-  stopifnot(class(object)=='oneVsAll')
+  stopifnot(class(object)=='mccubc')
   
   # mozliwe do przewidzenia klasy
   classes <- object$info$classes
@@ -189,28 +195,18 @@ predict.oneVsAll <- function(object, newX=object$info$X, ...)
     predict(x, newX, ...)
   })
   
-  #return(predictions) #TODO remove when not need
-  
-  if(class(object$models$'1') == "BinaryTree") #ctree
-  {
-    # TODO (?) ctree
-    # stworzenie macierzy ciagu bitow (kodow korekcyjnych) dla kazdego z wierszy (przykladu)
-    ecocPreds <- round(do.call(cbind, predictions))
-  }
-  else if(class(object$models$'1') == "rpart") #rpart
+  if(class(object$models$'1') == "rpart") #rpart
   {
     # dla rpart mamy inaczej zwracane pnstwo (odwrotnie dla 0 i 1)
     
     ecocPreds <- round(do.call(cbind, predictions))
     ecocPreds <- ecocPreds[,seq(1,dim(ecocPreds)[2],2)]
-  }
-  else if(class(object$models$'1') == "tree") #tree
+  } else if(class(object$models$'1') == "tree") #tree
   {
     # dla rpart mamy inaczej zwracane pnstwo (odwrotnie dla 0 i 1)
     ecocPreds <- round(do.call(cbind, predictions))
     ecocPreds <- ecocPreds[,seq(1,dim(ecocPreds)[2],2)]
-  }
-  else #ada
+  } else #ada
   {
     # stworzenie macierzy ciagu bitow (kodow korekcyjnych) dla kazdego z wierszy (przykladu)
     ecocPreds <- round(do.call(cbind, predictions))
@@ -255,7 +251,9 @@ countQualityForTree <- function(predictedTree, original)
   return(quality)
 }
 
-####################################################################
+## ################################################################### ##
+## Funkcje dotyczace tworzenia kodow korekcji bledow i odkodowania ich ##
+## ################################################################### ##
 
 makeMatrix <- function(classNo = 3, columnNo = 0, naive = FALSE, removeColumns = FALSE)
 {
