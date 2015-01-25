@@ -8,6 +8,65 @@
 
 ## wczytywanie pliku poprzez read.csv("nazwa_pliku")
 
+doAllTests <- function(fac=0.8)
+{
+  library(ada)
+  library(caret)
+  library(party)
+  library(tree)
+  
+  iriTr <- iris[1:(fac * dim(iris)[1]),]
+  iriTe <- iris[(fac * dim(iris)[1]):dim(iris)[1],]
+  
+  penTr <- read.csv("pendigits.tra")
+  penTe <- read.csv("pendigits.tes")
+  
+  pokTr <- read.csv("poker-hand-training-true.data")
+  pokTe <- read.csv("poker-hand-testing.data")
+  
+  letter <- read.csv("letter-recognition.data")
+  letTr <- letter[1:(fac * dim(letter)[1]),]
+  letTe <- letter[(fac * dim(letter)[1]):dim(letter)[1],]
+  
+  print("Czas: ")
+  print(Sys.time())
+  print("============================================")
+  print("============================================")
+  print("Testy dla zbioru cyfr pisanych recznie:")
+  print("============================================")
+  print("RPART:")
+  print("============================================")
+  doSetOfTests(penTr, penTe, rpart, 'prob')
+  print("============================================")
+  print("TREE:")
+  doSetOfTests(penTr, penTe, tree, 'vector')
+  
+  print("Czas: ")
+  print(Sys.time())
+  print("============================================")
+  print("============================================")
+  print("Testy dla zbioru rak pokerowych:")
+  print("============================================")
+  print("RPART:")
+  print("============================================")
+  doSetOfTests(pokTr, pokTe, rpart, 'prob')
+  print("============================================")
+  print("TREE:")
+  doSetOfTests(pokTr, pokTe, tree, 'vector')
+  
+  print("Czas: ")
+  print(Sys.time())
+  print("============================================")
+  print("============================================")
+  print("Testy dla zbioru rozpoznawania liter:")
+  print("============================================")
+  print("RPART:")
+  doSetOfTests(letTr, letTe, rpart, 'prob')
+  print("============================================")
+  print("TREE:")
+  doSetOfTests(letTr, letTe, tree, 'vector')
+}
+
 doSetOfTests <- function(train, test, FUN, type='prob')
 {
   print("Czas rozpoczecia: ")
@@ -20,8 +79,8 @@ doSetOfTests <- function(train, test, FUN, type='prob')
   XTrain <- train[,-dim(train)[2]]
   YTrain <- train[,dim(train)[2]]
   
-  XTest <- test[,-dim(train)[2]]
-  YTest <- test[,dim(train)[2]]
+  XTest <- test[,-dim(test)[2]]
+  YTest <- test[,dim(test)[2]]
   
   print("Dane przygotowane. Czas:")
   print(Sys.time())
@@ -35,7 +94,7 @@ doSetOfTests <- function(train, test, FUN, type='prob')
   print(Sys.time())
   print("============================================")
   print("Jakosc predykcji z wykorzystaniem kodow korekcyjnych i modelu ADA:")
-  countQuality(preds, Y)
+  print(countQuality(adaPreds, YTest))
   
   # liczenie dla zadanego modelu z wykorzystaniem kodow korekcyjnych
   
@@ -45,15 +104,23 @@ doSetOfTests <- function(train, test, FUN, type='prob')
   print("Predykcja dla zadanego modelu z kodami korekcyjnymi zakonczona. Czas:")
   print(Sys.time())
   print("============================================")
-  print("Jakosc predykcji dla zadanej funkcji z wykorzystaniem kodów korekcyjnych:")
-  countQuality(myPreds, YTest)
+  print("Jakosc predykcji dla zadanej funkcji z wykorzystaniem kodow korekcyjnych:")
+  print(countQuality(myPreds, YTest))
   
   # liczenie dla zadanego modelu (multiclass)
   
   multiModel <- FUN(class~., data=train)
   multiPredict <- predict(multiModel, XTest)
   
-  # TODO policzyc jakosc dla normalnej predykcji
+  print("============================================")
+  print("Jakosc predykcji dla zadanej funkcji bez kodow (multiclass):")
+  if(!is.null(dim(multiPredict)))
+  {
+    print(countQualityForTree(multiPredict, YTest))
+  } else 
+  {
+      print(countQuality(round(multiPredict), YTest))
+  }
 }
 
 ## przykladowe wywolanie (dla Iris)
@@ -72,68 +139,23 @@ example <- function()
   X <- iris[,-5]
   Y <- iris[,5]
   myModels <- oneVsAll(X, Y, rpart)                 #rpart  #ada  #tree
-  preds <- predict(myModels, X, type='prob')#type = #prob   #prob #[none]
+  preds <- predict(myModels, X, type='prob')#type = #prob   #prob #vector
   
   print("Ogolna jakosc predykcji wyniosla:")
   
   countQuality(preds, Y)
 }
 
-examplePenDigs <- function(trainPart=0.8)
-{
-  library(ada)
-  library(caret)
-  
-  pendigitTra <- read.csv("pendigits.tra")
-  pendigitTes <- read.csv("pendigits.tes")
-  
-  print("========================================")
-  print("Test w oparciu o standardowy zbior IRIS:")
-  print("========================================")
-  print(pendigitTra[1:5,])
-  print("========================================")
-  print("Czas rozpoczecia: ")
-  print(Sys.time())
-  print("========================================")
-  
-  X <- pendigitTra[,-dim(pendigitTra)[2]]
-  Y <- pendigitTra[,dim(pendigitTra)[2]]
-  
-  Xtrain <- X[1:(trainPart * dim(X)[1]),]
-  Ytrain <- Y[1:(trainPart * length(Y))]
-  
-  Xtest <- X[(trainPart * dim(X)[1]):dim(X)[1],]
-  Ytest <- Y[(trainPart * length(Y)):length(Y)]
-  
-  myModels <- oneVsAll(X, Y, ada)
-  
-  print("========================================")
-  print("Zakonczone generowanie modeli. Czas: ")
-  print(Sys.time())
-  print("========================================")
-  
-  preds <- predict(myModels, Xtest, type='probs')
-  
-  print("Ogolna jakosc klasyfikacji wyniosla:")
-  
-  q <- countQuality(preds, Ytest)
-  print(q)
-  
-  print("========================================")
-  print("Czas zakończenia: ")
-  print(Sys.time())
-  print("========================================")
-}
-
 ## ######################################################################################## ##
 ## nasza klasa modelu predykcji opartego na klasyfikatorach binarnych i kodach korekcyjnych ##
 ## ######################################################################################## ##
 
-oneVsAll <- function(X,Y,FUN,n=FALSE,...)
+oneVsAll <- function(X,Y,FUN,n=TRUE,...)
 {
   #Macierz ECOC dla zadanego zbioru testowego
-  ecocMatrix <- makeMatrix(length(unique(Y)), n)
   classes <- unique(Y)
+  ecocMatrix <- makeMatrix(length(unique(Y)), 2*length(classes), n)
+  cat("Wymiary macierzy ECOC: ", dim(ecocMatrix), "\n")
   
   models <- apply(ecocMatrix, 2, function(x)
   {
@@ -219,7 +241,24 @@ countQuality <- function(predicted, original)
   booleans <- predicted == original
   tab <- table(booleans)
   
-  tab / length(booleans)
+  quality <- tab / length(booleans)
+  return(quality)
+}
+
+# dla tree w predictedTree zwracane sa prawdopodobienstwa dla kazdej z klas
+countQualityForTree <- function(predictedTree, original)
+{
+  
+  predictedFinal <- apply(predictedTree, 1, function(x)
+  {
+    return(colnames(predictedTree)[which(x == max(x))])
+  })
+  
+  booleans <- predictedFinal == original
+  tab <- table(booleans)
+  
+  quality <- tab / length(booleans)
+  return(quality)
 }
 
 ####################################################################
