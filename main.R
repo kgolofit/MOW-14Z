@@ -15,16 +15,20 @@ doAllTests <- function(fac=0.8)
   library(party)
   library(tree)
   
-  iriTr <- iris[1:(fac * dim(iris)[1]),]
-  iriTe <- iris[(fac * dim(iris)[1]):dim(iris)[1],]
+  pen <- read.csv("pendigits.csv")
+  wine_white <- read.csv("winequality-white.csv")
+  wine_red <- read.csv("winequality-red.csv")
+  letter <- read.csv("letter.csv")
   
-  penTr <- read.csv("pendigits.tra")
-  penTe <- read.csv("pendigits.tes")
+  penTr <- pen[1:(fac * dim(pen)[1]),]
+  penTe <- pen[(fac * dim(pen)[1]):dim(pen)[1],]
   
-  pokTr <- read.csv("poker-hand-training-true.data")
-  pokTe <- read.csv("poker-hand-testing.data")
+  wwTr <- wine_white[1:(fac * dim(wine_white)[1]),]
+  wwTe <- wine_white[(fac * dim(wine_white)[1]):dim(wine_white)[1],]
   
-  letter <- read.csv("letter-recognition.data")
+  wrTr <- wine_red[1:(fac * dim(wine_red)[1]),]
+  wrTe <- wine_red[(fac * dim(wine_red)[1]):dim(wine_red)[1],]
+  
   letTr <- letter[1:(fac * dim(letter)[1]),]
   letTe <- letter[(fac * dim(letter)[1]):dim(letter)[1],]
   
@@ -45,14 +49,27 @@ doAllTests <- function(fac=0.8)
   print(Sys.time())
   print("============================================")
   print("============================================")
-  print("Testy dla zbioru rak pokerowych:")
+  print("Testy dla zbioru oceny wina bialego:")
   print("============================================")
   print("RPART:")
   print("============================================")
-  doSetOfTests(pokTr, pokTe, rpart, 'prob')
+  doSetOfTests(wwTr, wwTe, rpart, 'prob')
   print("============================================")
   print("TREE:")
-  doSetOfTests(pokTr, pokTe, tree, 'vector')
+  doSetOfTests(wwTr, wwTe, tree, 'vector')
+  
+  print("Czas: ")
+  print(Sys.time())
+  print("============================================")
+  print("============================================")
+  print("Testy dla zbioru oceny wina czerwonego:")
+  print("============================================")
+  print("RPART:")
+  print("============================================")
+  doSetOfTests(wrTr, wrTe, rpart, 'prob')
+  print("============================================")
+  print("TREE:")
+  doSetOfTests(wrTr, wrTe, tree, 'vector')
   
   print("Czas: ")
   print(Sys.time())
@@ -123,29 +140,6 @@ doSetOfTests <- function(train, test, FUN, type='prob')
   }
 }
 
-## przykladowe wywolanie (dla Iris)
-example <- function()
-{
-  library(ada)
-  library(caret)
-  library(party)
-  
-  print("========================================")
-  print("Test w oparciu o standardowy zbior IRIS:")
-  print("========================================")
-  print(iris[1:5,])
-  print("========================================")
-  
-  X <- iris[,-5]
-  Y <- iris[,5]
-  myModels <- oneVsAll(X, Y, rpart)                 #rpart  #ada  #tree
-  preds <- predict(myModels, X, type='prob')#type = #prob   #prob #vector
-  
-  print("Ogolna jakosc predykcji wyniosla:")
-  
-  countQuality(preds, Y)
-}
-
 ## ######################################################################################## ##
 ## nasza klasa modelu predykcji opartego na klasyfikatorach binarnych i kodach korekcyjnych ##
 ## ######################################################################################## ##
@@ -154,7 +148,7 @@ oneVsAll <- function(X,Y,FUN,n=TRUE,...)
 {
   #Macierz ECOC dla zadanego zbioru testowego
   classes <- unique(Y)
-  ecocMatrix <- makeMatrix(length(unique(Y)), 2*length(classes), n)
+  ecocMatrix <- makeMatrix(length(classes), length(classes), removeColumns=TRUE)
   cat("Wymiary macierzy ECOC: ", dim(ecocMatrix), "\n")
   
   models <- apply(ecocMatrix, 2, function(x)
